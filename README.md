@@ -1,165 +1,167 @@
-# 🍸 Asystent Koktajli RAG (FastMCP + LMStudio)
+# 🍸 RAG Cocktail Assistant (FastMCP + LMStudio)
 
 <p align="center">
-  <strong>Zaawansowany system RAG (Retrieval-Augmented Generation) do serwowania precyzyjnych przepisów na koktajle dla modeli LLM.</strong>
+  <strong>Advanced Retrieval-Augmented Generation (RAG) system for serving precise cocktail recipes to LLMs.</strong>
 </p>
 
 <p align="center">
 <a href="https://github.com/modelcontext/fastmcp">
-    <img src="https://img.shields.io/badge/FastMCP-2.13-blue?style=for-the-badge&logo=python&logoColor=white" alt="FastMCP">
+    <img src="https://img.shields.io/badge/FastMCP-2.13-blue?style=for-the-badge&logo=python&logoColor=white" alt="FastMCP">
 </a>
 <a href="https://lmstudio.ai/">
-    <img src="https://img.shields.io/badge/LM_Studio-0.2-blueviolet?style=for-the-badge&logo=lm-studio" alt="LM Studio">
+    <img src="https://img.shields.io/badge/LM_Studio-0.2-blueviolet?style=for-the-badge&logo=lm-studio" alt="LM Studio">
 </a>
 <a href="https://www.python.org/">
-    <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python" alt="Python">
+    <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python" alt="Python">
 </a>
 </p>
 
-## 1. O Projekcie
 
-Ten projekt to implementacja architektury **RAG (Retrieval-Augmented Generation)**. Jego celem jest stworzenie zewnętrznego systemu "narzędzi" (tools), który łączy model językowy (LLM) z dedykowaną, statyczną bazą wiedzy.
+## 1. About the Project
 
-Zamiast polegać na ogólnej, wewnętrznej wiedzy modelu, system ten zapewnia, że odpowiedzi są **weryfikowalne** i **oparte na faktach** z dostarczonego zbioru danych.
+This project is an implementation of the **RAG (Retrieval-Augmented Generation)** architecture. Its goal is to create an external "tools" system that connects a language model (LLM) with a dedicated, static knowledge base.
 
-Projekt ten demonstruje:
-* Implementację serwera **MCP (Model Context Protocol)** przy użyciu **FastMCP**.
-* Budowę niestandardowego silnika wyszukiwania (retrievera) w Pythonie, zdolnego do obsługi niekonsekwentnych danych.
-* Integrację serwera RAG z klientem **LMStudio**, aby udostępnić modelowi LLM (np. `qwen2`) nowe, dynamiczne możliwości.
+Instead of relying on the model’s general internal knowledge, this system ensures that responses are **verifiable** and **fact-based** using the provided dataset.
+
+This project demonstrates:
+* Implementation of an **MCP (Model Context Protocol)** server using **FastMCP**.
+* Construction of a custom search engine (retriever) in Python, capable of handling inconsistent data.
+* Integration of the RAG server with the **LMStudio** client to provide the LLM (e.g., `qwen2`) with new, dynamic capabilities.
 
 <br>
 
-## 2. Kluczowe Technologie (Wyjaśnienie Koncepcji)
+## 2. Key Technologies (Concept Explanation)
 
-Zanim przejdziemy do architektury, warto wyjaśnić trzy kluczowe technologie, na których opiera się ten projekt.
+Before moving on to the architecture, it’s worth explaining the three key technologies this project is built upon.
 
-### 🧠 Czym jest RAG (Retrieval-Augmented Generation)?
+### 🧠 What is RAG (Retrieval-Augmented Generation)?
 
-**RAG** to skrót od **Retrieval-Augmented Generation**, co można przetłumaczyć jako "Generowanie Wzbogacone o Wyszukiwanie".
+**RAG** stands for **Retrieval-Augmented Generation**, which can be understood as “Generation Enhanced by Retrieval.”
 
-* **Problem:** Modele LLM (jak Qwen2 czy Llama) często "halucynują" lub zmyślają odpowiedzi, gdy nie znają faktów. Ich wiedza jest ograniczona do danych, na których je trenowano.
-* **Rozwiązanie (RAG):** Zamiast polegać na pamięci modelu, RAG daje mu "podręcznik" (w naszym przypadku plik `cocktail_dataset.json`) i każe mu z niego korzystać za każdym razem, gdy odpowiada na pytanie.
+* **The Problem:** LLMs (like Qwen2 or Llama) often *hallucinate* or make up answers when they don’t know the facts. Their knowledge is limited to the data they were trained on.
+* **The Solution (RAG):** Instead of relying on the model’s internal memory, RAG gives it a “textbook” (in our case, the `cocktail_dataset.json` file) and instructs it to consult it every time it answers a question.
 
-To działa jak **egzamin z otwartą książką**:
-1.  **Retrieval (Wyszukiwanie):** Użytkownik pyta o przepis. Nasz kod (`rag_engine.py`) najpierw **wyszukuje** (pobiera) prawdziwy przepis z naszego pliku JSON.
-2.  **Augmentation (Wzbogacanie):** System "wzbogaca" kontekst modelu, dodając do jego polecenia znaleziony przepis.
-3.  **Generation (Generowanie):** Model LLM dostaje proste polecenie: "Na podstawie *tych* danych, które ci dałem, wygeneruj ładną odpowiedź dla użytkownika".
+It works like an **open-book exam**:
+1. **Retrieval:** The user asks for a recipe. Our code (`rag_engine.py`) first **retrieves** the correct recipe from our JSON file.
+2. **Augmentation:** The system **augments** the model’s context by adding the retrieved recipe to its prompt.
+3. **Generation:** The LLM receives a simple instruction: “Based on *these* provided data, generate a nice answer for the user.”
 
-Dzięki temu model nie zmyśla, lecz opiera się na faktach.
+As a result, the model doesn’t fabricate — it relies on factual information.
 
-### 📞 Czym jest MCP (Model Context Protocol)?
+### 📞 What is MCP (Model Context Protocol)?
 
-**MCP** to "język" lub "linia telefoniczna", która pozwala modelowi LLM rozmawiać z naszym kodem w Pythonie.
+**MCP** is a “language” or “phone line” that allows an LLM to communicate with our Python code.
 
-* **Problem:** Model LLM (działający w LMStudio) i nasz silnik wyszukiwania (`rag_engine.py`) to dwa oddzielne programy. Muszą mieć sposób, by się ze sobą komunikować.
-* **Rozwiązanie (MCP):** MCP to protokół, który standaryzuje tę komunikację.
-    * Nasz `server.py` (napisany przy użyciu **FastMCP**) działa jak "kuchnia" lub centrala telefoniczna, która czeka na zamówienia na porcie 8001.
-    * Gdy model LLM chce coś znaleźć, używa MCP, by "zadzwonić" do naszego serwera i złożyć "zamówienie" (np. "proszę, użyj narzędzia `get_cocktail_recipe` dla 'Mojito'").
-    * Nasz serwer odbiera to, uruchamia `rag_engine.py` i odsyła dane.
+* **The Problem:** The LLM (running in LMStudio) and our retrieval engine (`rag_engine.py`) are two separate programs. They need a way to talk to each other.
+* **The Solution (MCP):** MCP is a protocol that standardizes this communication.
+    * Our `server.py` (built using **FastMCP**) acts like a “kitchen” or a phone switchboard, waiting for orders on port 8001.
+    * When the LLM wants to find something, it uses MCP to “call” our server and place an “order” (e.g., “please use the `get_cocktail_recipe` tool for ‘Mojito’”).
+    * Our server receives the request, runs `rag_engine.py`, and sends the data back.
 
-### 🖥️ Czym jest LMStudio?
+### 🖥️ What is LMStudio?
 
-**LMStudio** to darmowa aplikacja na komputery stacjonarne, która pozwala każdemu pobierać i uruchamiać potężne modele LLM (jak te od Mety, Google czy Mistral) lokalnie, na własnym komputerze.
+**LMStudio** is a free desktop application that allows anyone to download and run powerful LLMs (like those from Meta, Google, or Mistral) locally on their own computer.
 
-W naszym projekcie LMStudio pełni **dwie kluczowe role**:
-1.  **Host Modelu:** Jest "domem" dla modelu LLM (np. `qwen2`), który jest "mózgiem" całej operacji.
-2.  **Klient MCP:** Działa jako "telefon", który używa protokołu MCP do łączenia się z serwerem i korzystania z narzędzi, które mu udostępniliśmy.
+In our project, LMStudio serves **two key roles**:
+1.  **Model Host:** It’s the “home” of the LLM (e.g., `qwen2`), which acts as the “brain” of the entire operation.
+2.  **MCP Client:** It functions as the “phone” that uses the MCP protocol to connect to the server and access the tools we’ve provided.
 
-<br >
+<br>
 
-## 3. Architektura Systemu (Diagram Przepływu)
+## 3. System Architecture (Flow Diagram)
 
-Poniższy diagram ilustruje, jak informacja przepływa przez system, od zapytania użytkownika do finalnej odpowiedzi.
+The diagram below illustrates how information flows through the system — from the user’s query to the final response.
 
 ```mermaid
 graph TD
-    subgraph "Klient (LMStudio)"
-        A[Użytkownik] -- 1. Prompt: 'I have Gin and Lemon Peel' --> B(Model LLM - Qwen2);
-        B -- 8. Finalna odpowiedź (wygenerowana z JSON) --> A;
+    subgraph "Client (LMStudio)"
+        A[User] -- 1. Prompt: 'I have Gin and Lemon Peel' --> B(LLM Model - Qwen2);
+        B -- 8. Final response (generated from JSON) --> A;
     end
 
-    subgraph "Serwer (Python @ Port 8001)"
+    subgraph "Server (Python @ Port 8001)"
         C{{FastMCP Server - server.py}};
-        D[Silnik RAG - rag_engine.py];
-        E[(Baza Danych - cocktail_dataset.json)];
+        D[RAG Engine - rag_engine.py];
+        E[(Database - cocktail_dataset.json)];
     end
 
-    B -- 2. Żądanie MCP: Wywołaj 'suggest_cocktails(...)' --> C;
-    C -- 3. Wywołanie funkcji: find_cocktails_by_ingredients(...) --> D;
-    D -- 4. Odczyt i parsowanie danych --> E;
-    E -- 5. Zwraca surowe dane [JSON Array] --> D;
-    D -- 6. Zwraca złożony obiekt Python: {'perfect': [...], 'partial': [...]} --> C;
-    C -- 7. 'Spłaszcza' dane i zwraca prosty JSON (Tool Result) --> B;
+    B -- 2. MCP Request: Call 'suggest_cocktails(...)' --> C;
+    C -- 3. Function call: find_cocktails_by_ingredients(...) --> D;
+    D -- 4. Read and parse data --> E;
+    E -- 5. Return raw data [JSON Array] --> D;
+    D -- 6. Return complex Python object: {'perfect': [...], 'partial': [...]} --> C;
+    C -- 7. 'Flatten' data and return simple JSON (Tool Result) --> B;
+
 ```
 
 ```mermaid
 graph LR
-    subgraph "Krok 1: Użytkownik (LMStudio)"
-        A[Zapytanie Użytkownika<br/>'I have Gin and Lemon Peel']
+    subgraph "Step 1: User (LMStudio)"
+        A[User Query<br/>'I have Gin and Lemon Peel']
     end
 
-    subgraph "Krok 2: Model LLM (LMStudio)"
-        B("Wywołanie Narzędzia (JSON)<br/>(Argumenty wygenerowane przez LLM)<br/><br/><strong>Payload:</strong><br/>['Gin', 'Lemon Peel']")
+    subgraph "Step 2: LLM Model (LMStudio)"
+        B("Tool Invocation (JSON)<br/>(Arguments generated by the LLM)<br/><br/><strong>Payload:</strong><br/>['Gin', 'Lemon Peel']")
     end
 
-    subgraph "Krok 3: Normalizacja Danych (rag_engine.py)"
-        C("Funkcja: _normalize_ingredient<br/>(Czyszczenie 'brudnych' danych)<br/><br/><strong>Payload:</strong><br/>{'gin', 'lemon peel'}")
+    subgraph "Step 3: Data Normalization (rag_engine.py)"
+        C("Function: _normalize_ingredient<br/>(Cleaning 'dirty' data)<br/><br/><strong>Payload:</strong><br/>{'gin', 'lemon peel'}")
     end
 
-    subgraph "Krok 4: Wyszukiwanie (rag_engine.py)"
-        D("Złożony Wynik (Python Dict)<br/>(Zwracany do server.py)<br/><br/><strong>Payload:</strong><br/>{<br/>&nbsp;&nbsp;'perfect': [ { 'cocktail': {...} }, { 'cocktail': {...} } ],<br/>&nbsp;&nbsp;'partial': [ { 'cocktail': {...} } ]<br/>}")
+    subgraph "Step 4: Retrieval (rag_engine.py)"
+        D("Complex Result (Python Dict)<br/>(Returned to server.py)<br/><br/><strong>Payload:</strong><br/>{<br/>&nbsp;&nbsp;'perfect': [ { 'cocktail': {...} }, { 'cocktail': {...} } ],<br/>&nbsp;&nbsp;'partial': [ { 'cocktail': {...} } ]<br/>}")
     end
 
-    subgraph "Krok 5: Spłaszczanie (server.py)"
-        E("Prosty Wynik (JSON)<br/>(Wysyłany z powrotem do LLM)<br/><br/><strong>Tabela: perfect_matches</strong><br/>| name | matched_ingredients |<br/>| 'Alaska Cocktail' | ['gin', 'lemon peel'] |<br/>| 'Gin Toddy' | ['gin', 'lemon peel'] |<br/>| ... (Limit do 5) ... |<br/><br/><strong>Tabela: partial_matches</strong><br/>| name | missing_count |<br/>| 'Negroni' | 1 |<br/>| ... (Limit do 5) ... |")
+    subgraph "Step 5: Flattening (server.py)"
+        E("Simple Result (JSON)<br/>(Sent back to the LLM)<br/><br/><strong>Table: perfect_matches</strong><br/>| name | matched_ingredients |<br/>| 'Alaska Cocktail' | ['gin', 'lemon peel'] |<br/>| 'Gin Toddy' | ['gin', 'lemon peel'] |<br/>| ... (Limit to 5) ... |<br/><br/><strong>Table: partial_matches</strong><br/>| name | missing_count |<br/>| 'Negroni' | 1 |<br/>| ... (Limit to 5) ... |")
     end
 
-    subgraph "Krok 6: Generowanie (LMStudio)"
-        F(Model LLM generuje odpowiedź<br/>czytając **tylko** prosty JSON z Kroku 5)
+    subgraph "Step 6: Generation (LMStudio)"
+        F(The LLM generates the response<br/>by reading **only** the simple JSON from Step 5)
     end
 
-    A -- Zapytanie --> B;
-    B -- Wywołanie narzędzia --> C;
-    C -- Przetwarzanie --> D;
-    D -- Transformacja --> E;
-    E -- Wynik narzędzia --> F;
+    A -- Query --> B;
+    B -- Tool call --> C;
+    C -- Processing --> D;
+    D -- Transformation --> E;
+    E -- Tool result --> F;
+
 ```
 
-## 4. Architektura Danych: Podróż Jednego Zapytania
+## 4. Data Architecture: The Journey of a Single Query
 
-Aby najlepiej zrozumieć, jak system przetwarza dane, prześledźmy podróż zapytania **"I have Gin and Lemon Peel"** przez całą architekturę.
+To better understand how the system processes data, let’s trace the journey of the query **"I have Gin and Lemon Peel"** through the entire architecture.
 
-### Krok 1: Zapytanie Użytkownika (Surowy Tekst)
-Użytkownik wpisuje w LMStudio:
+### Step 1: User Query (Raw Text)
+The user types in LMStudio:
 
 ```
 I have Gin and Lemon Peel
 ```
 
-### Krok 2: Wywołanie Narzędzia (JSON od LLM do Serwera)
-Model LLM (`qwen2`) rozpoznaje, że musi użyć narzędzia. Parsuje zapytanie użytkownika do formatu JSON i wysyła je do naszego serwera `server.py`:
+### Step 2: Tool Invocation (JSON from LLM to Server)
+The LLM (`qwen2`) recognizes that it needs to use a tool. It parses the user’s query into JSON format and sends it to our `server.py` server:
 ```json
 {
   "ingredients": ["Gin", "Lemon Peel"]
 }
 ```
 
-### Krok 3: Normalizacja Danych (w rag_engine.py)
-Nasz silnik RAG odbiera ten JSON. Funkcja (`_normalize_ingredient`) natychmiast czyści dane, aby poradzić sobie z "brudną" bazą danych
+### Step 3: Data Normalization (in rag_engine.py)
+Our RAG engine receives this JSON. The function (`_normalize_ingredient`) immediately cleans the data to handle a “messy” database.
 
-| Dane Wejściowe (z LLM) | Po Normalizacji (w Pythonie) | Uzasadnienie |
+| Input Data (from LLM) | After Normalization (in Python) | Explanation |
 |:---|:---|:---|
-| "Gin" | "gin" | Standardyzacja (małe litery) |
-| "Lemon Peel" | "lemon peel" | **Kluczowy krok:** Rozróżnienie od soku ("lemon") |
+| "Gin" | "gin" | Standardization (lowercase) |
+| "Lemon Peel" | "lemon peel" | **Key step:** Differentiation from juice ("lemon") |
 
+Resulting search set: (`{'gin', 'lemon peel'}`)
 
-Wynikowy zestaw do wyszukania: (`{'gin', 'lemon peel'}`)
+### Step 4: Retrieval and "Flattening" (in server.py)
+Our `rag_engine.py` finds all matching cocktails and returns them to `server.py` as a complex object. Then, `server.py` flattens this data to prepare a simple response for the LLM.
 
-### Krok 4: Wyszukiwanie i "Spłaszczanie" (w server.py)
-Nasz rag_engine.py znajduje wszystkie pasujące koktajle i zwraca je do server.py jako złożony obiekt. server.py następnie spłaszcza te dane, aby przygotować prostą odpowiedź dla modelu LLM.
-
-### Krok 5: Wynik Narzędzia (Finalny JSON wysłany do LLM)
-Model LLM nie otrzymuje skomplikowanego, zagnieżdżonego obiektu. Zamiast tego, server.py wysyła mu ten prosty, "spłaszczony" JSON, który jest łatwy do odczytania:
+### Step 5: Tool Result (Final JSON Sent to LLM)
+The LLM doesn’t receive a complicated nested object. Instead, `server.py` sends it a simple, “flattened” JSON that’s easy to read:
 
 ```json
 {
@@ -170,33 +172,31 @@ Model LLM nie otrzymuje skomplikowanego, zagnieżdżonego obiektu. Zamiast tego,
 }
 ```
 
-Kluczowe listy (`perfect_matches`) i (`partial_matches`) wewnątrz tego JSON-a można zwizualizować jako te tabele:
+The key lists (`perfect_matches`) and (`partial_matches`) inside this JSON can be visualized as the following tables:
 
+**Table: perfect_matches (Data sent to LLM)**  
+(Cocktails found that contain both ingredients: "gin" and "lemon peel")
 
-Tabela: perfect_matches (Dane wysłane do LLM)
-(Znaleziono koktajle, które mają oba składniki: "gin" i "lemon peel")
-
-| Nazwa (name) | Dopasowane Składniki (matched ingredients) | Pełna Lista Składników (all ingredients in recipe) |
+| Name | Matched Ingredients | Full Ingredient List (all ingredients in recipe) |
 |:-------------|:------------------------------------------|:---------------------------------------------------|
 | Alaska | ['gin', 'lemon peel'] | ["1 1/2 oz Gin", "Twist of Lemon Peel", ...] |
 | Gin Toddy | ['gin', 'lemon peel'] | ["2 oz Gin", "1 twist of Lemon Peel", ...] |
 | Bermuda | ['gin', 'lemon peel'] | ["3/4 oz Gin", "3/4 oz Brandy", "Lemon Peel", ...] |
-| ... (Limit do 5) | ... | ... |
+| ... (Limit to 5) | ... | ... |
 
-Tabela: partial_matches (Dane wysłane do LLM)
-(Znaleziono koktajle, które mają tylko jeden ze składników)
+**Table: partial_matches (Data sent to LLM)**  
+(Cocktails found that contain only one of the ingredients)
 
-| Nazwa (name) | Dopasowane Składniki (matched_ingredients) | Liczba Brakujących Składników (missing_ingredients_count) |
+| Name | Matched Ingredients | Missing Ingredients Count |
 |:-------------|:------------------------------------------|:---------------------------------------------------------:|
 | Negroni | ['gin'] | 1 |
 | Gin And Tonic | ['gin'] | 1 |
 | Whiskey Sour | ['lemon'] | 1 |
-| ... (Limit do 5) | ... | ... |
+| ... (Limit to 5) | ... | ... |
 
+### Step 6: Response Generation (Raw Text)
+The LLM receives simple, tabular data from Step 5. According to the System Prompt, its task is only to read and present it:
 
-
-### Krok 6: Generowanie Odpowiedzi (Surowy Tekst)
-Model LLM otrzymuje proste, tabelaryczne dane z Kroku 5. Zgodnie z System Promptem, jego zadaniem jest tylko odczytanie ich i zaprezentowanie:
 ```
 "Based on the ingredients you have, here are some cocktail suggestions:
 
@@ -214,43 +214,44 @@ Negroni"
 
 ---
 
-## 5. Instrukcja Uruchomienia (Krok po Kroku)
+## 5. Run Instructions (Step by Step)
 
-### Krok 1: Pobranie i Instalacja
+### Step 1: Download and Installation
 
-Aby uruchomić projekt, najpierw sklonuj to repozytorium na swój lokalny komputer i zainstaluj wymagane zależności.
+To run the project, first clone this repository to your local computer and install the required dependencies.
 
 ```bash
-# 1. Sklonuj repozytorium
+# 1. Clone the repository
 git clone https://github.com/xVarmondx/fastmcp-cocktail-rag
 
-# 2. Wejdź do folderu projektu
-cd [NAZWA_FOLDERU_PROJEKTU]
+# 2. Enter the project folder
+cd fastmcp-cocktail-rag
 
-# 3. (Zalecane) Stwórz wirtualne środowisko
+# 3. (Recommended) Create a virtual environment
 python -m venv .venv
 
-# 4. Aktywuj wirtualne środowisko
-#    Na Windows:
+4. Active virtual enviroment
+#    On Windows:
 .venv\Scripts\activate
-#    Na macOS/Linux:
+#    On macOS/Linux:
 source .venv/bin/activate
 
-# 5. Zainstaluj zależności
+# 5. Install dependencies
 pip install "fastmcp[http]"
 ```
 
-### Krok 2: Uruchomienie Serwera RAG (Python)
+### Step 2: Running the RAG Server (Python)
 
-Upewnij się, że Twój `cocktail_dataset.json` znajduje się w ścieżce określonej w `server.py` (domyślnie: `dataset/cocktail_dataset.json`).
+Make sure your `cocktail_dataset.json` file is located at the path specified in `server.py` (default: `dataset/cocktail_dataset.json`).
 
-W terminalu, w którym masz aktywowane środowisko `.venv`, uruchom serwer:
+In the terminal, with the `.venv` environment activated, run the server:
 
 ```bash
 python server.py
 ```
 
-Serwer uruchomi się na porcie 8001. Jeśli wszystko poszło dobrze, powinieneś zobaczyć w konsoli potwierdzenie załadowania bazy danych:
+The server will start on port 8001.  
+If everything went well, you should see a confirmation in the console that the database has been loaded:
 
 ```
 Successfully loaded 134 cocktails from dataset/cocktail_dataset.json
@@ -259,20 +260,16 @@ Starting FastMCP Cocktail RAG server...
 Server started.
 ```
 
-Nie zamykaj tego terminala.
+Do not close this terminal.
 
+### Step 3: Client Configuration (LMStudio)
+Now that our RAG server is running, we need to configure LMStudio to communicate with it.
 
-### Krok 3: Konfiguracja Klienta (LMStudio)
-Teraz, gdy nasz serwer RAG działa, musimy skonfigurować LMStudio, aby z nim rozmawiało.
-
-1.Uruchom LMStudio.
-
-2.Przejdź do zakładki Discover (Lupa) na pasku po lewej stronie.
-
-3. Wyszukaj i pobierz model : (`qwen2-vl-7b-instruct`) (7.39GB)
-
-4. Wejdź w zakładkę Chat po lewej stronie, następnie po prawej stronie wybierz zakładkę Program->Install->Edit mcp.json
-Ustaw połączenie z serwerem
+1. Launch LMStudio.  
+2. Go to the **Discover** tab (magnifying glass icon) on the left sidebar.  
+3. Search for and download the model: (`qwen2-vl-7b-instruct`) (7.39 GB).  
+4. Open the **Chat** tab on the left side, then on the right panel go to **Program → Install → Edit mcp.json**.  
+   Set up the connection to the server.
 
 ```json
 {
@@ -284,81 +281,81 @@ Ustaw połączenie z serwerem
 }
 ```
 
-I kliknij (`Save`)
+And click (`Save`).
 
-5. Wejdź do zakładki (`Developer`) i uruchom serwer czatowy LMStudio, klikając Start Server u góry.
-6. Wejdź do zakładki (`Chat`) i dodaj nowy chat (+) i wpisz zapytanie:
+5. Go to the **Developer** tab and start the LMStudio chat server by clicking **Start Server** at the top.  
+6. Open the **Chat** tab, create a new chat (+), and enter a query:
 
 ---
 
-## 6. Przykładowe Testy (Jak sprawdzić, czy działa)
+## 6. Example Tests (How to Check if It Works)
 
-Po wykonaniu wszystkich powyższych kroków, system jest gotowy do pracy. Oto zestaw zapytań testowych, które możesz zadać w LMStudio, aby sprawdzić każdą z trzech głównych funkcjonalności RAG.
+After completing all the steps above, the system is ready to use. Below is a set of test queries you can ask in LMStudio to verify each of the three main RAG functionalities.
 
-### A. Test: Pytania o koktajle i ich składniki
-*Narzędzie: `get_cocktail_recipe`*
+### A. Test: Questions About Cocktails and Their Ingredients
+*Tool: `get_cocktail_recipe`*
 
-Te prompty sprawdzają, czy system potrafi znaleźć konkretny przepis w bazie danych `cocktail_dataset.json`.
+These prompts test whether the system can find a specific recipe in the `cocktail_dataset.json` database.
 
-**Test 1: Zapytanie o przepis (Sukces)**
+**Test 1: Recipe Query (Success)**
 ```
 What is the recipe for an Apricot Lady?
 ```
 
-* **Oczekiwany wynik:** Model poprawnie wywoła narzędzie i zwróci przepis na `Apricot Lady`.
+* **Expected result:** The model correctly calls the tool and returns the recipe for `Apricot Lady`.
 
-**Test 2: Zapytanie o przepis którego nie ma w bazie**
+**Test 2: Query for a recipe that does not exist in the database**
 
 ```
 I'd like the recipe for a Cosmopolitan.
 ```
 
-* **Oczekiwany wynik:** Model poprawnie stwierdzi, że nie znalazł przepisu (ponieważ nie ma go w pliku JSON), zamiast go wymyślić.
+* **Expected result:** The model correctly determines that the recipe was not found (since it’s not in the JSON file), instead of making one up.
 
 ---
 
-### B. Test: Sugerowanie na podstawie składników
-*Narzędzie: `suggest_cocktails_by_ingredients`*
+### B. Test: Suggestions Based on Ingredients
+*Tool: `suggest_cocktails_by_ingredients`*
 
-Te prompty sprawdzają logikę `_normalize_ingredient` w `rag_engine.py` i zdolność systemu do radzenia sobie z niekonsekwentnymi danymi.
+These prompts test the `_normalize_ingredient` logic in `rag_engine.py` and the system’s ability to handle inconsistent data.
 
-**Test 3: Grupowanie Synonimów (Lemon vs Lemon Juice)**
+**Test 3: Synonym Grouping (Lemon vs Lemon Juice)**
 
 ```
 I have Gin and Lemon Juice. What can I make?
 ```
 
-* **Oczekiwany wynik:** System powinien znaleźć koktajle zarówno z `"lemon"` (np. `Long Island Tea`) jak i `"lemon juice"` (np. `Gin Sour`).
+* **Expected result:** The system should find cocktails containing both `"lemon"` (e.g., `Long Island Tea`) and `"lemon juice"` (e.g., `Gin Sour`).
 
-**Test 4: Rozróżnianie Składników (Lemon vs Lemon Peel)**
+**Test 4: Ingredient Differentiation (Lemon vs Lemon Peel)**
 
 ```
 I have Gin and Lemon Peel. What can I make?
 ```
 
-* **Oczekiwany wynik:** System **NIE powinien** pokazywać `Long Island Tea`. Powinien poprawnie zwrócić koktajle, które faktycznie zawierają `"Lemon Peel"` (np. `Alaska Cocktail` lub `Gin Toddy`).
+* **Expected result:** The system **should NOT** display `Long Island Tea`. It should correctly return cocktails that actually contain `"Lemon Peel"` (e.g., `Alaska Cocktail` or `Gin Toddy`).
 
 ---
 
-### C. Test: Sugerowanie na podstawie preferencji smakowych
-*Narzędzie: `suggest_cocktails_by_preference`*
+### C. Test: Suggestions Based on Flavor Preferences
+*Tool: `suggest_cocktails_by_preference`*
 
-Te prompty sprawdzają filtrowanie po tagach.
+These prompts test tag-based filtering.
 
-**Test 5: Filtrowanie po tagach (Sukces - Logika "AND")**
+**Test 5: Tag Filtering (Success - "AND" Logic)**
 
 ```
 Suggest a cocktail that is "IBA" and "Classic".
 ```
 
-* **Oczekiwany wynik:** Model pokaże listę zawierającą m.in. `Old Fashioned`, `Negroni` i `Dry Martini`.
+* **Expected result:** The model will display a list including `Old Fashioned`, `Negroni`, and `Dry Martini`.
 
-**Test 6: Filtrowanie po tagach (Obsługa błędów / `null`)**
+**Test 6: Tag Filtering (Error Handling / `null`)**
 
 ```
 I want something that is "Vegan" and "Savory".
 ```
-* **Oczekiwany wynik:** System nie ulegnie awarii (dzięki obsłudze tagów `null`). Model poprawnie stwierdzi, że nic nie znalazł, ponieważ żaden koktajl w bazie nie ma obu tych tagów jednocześnie (`Mojito` jest "Vegan", `Old Fashioned` jest "Savory").
+* **Expected result:** The system will not crash (thanks to `null` tag handling). The model will correctly determine that nothing was found, since no cocktail in the database has both of those tags simultaneously (`Mojito` is "Vegan", `Old Fashioned` is "Savory").
 
 
 
